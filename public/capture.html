@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tweet Capture</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body>
+    <div id="tweet-container">
+        <blockquote class="twitter-tweet" style="width: 400px;" data-dnt="true">
+            <!-- Tweet will be inserted here -->
+        </blockquote>
+    </div>
+    <script>
+        async function captureTweet(tweetUrl) {
+            // Insert tweet
+            const container = document.getElementById('tweet-container');
+            const tweetEmbed = document.createElement('blockquote');
+            tweetEmbed.className = 'twitter-tweet';
+            tweetEmbed.style.width = '400px';
+            tweetEmbed.setAttribute('data-dnt', 'true');
+            
+            const link = document.createElement('a');
+            link.href = tweetUrl;
+            tweetEmbed.appendChild(link);
+            
+            container.innerHTML = '';
+            container.appendChild(tweetEmbed);
+
+            // Load Twitter widgets
+            const script = document.createElement('script');
+            script.src = 'https://platform.twitter.com/widgets.js';
+            script.charset = 'utf-8';
+            document.body.appendChild(script);
+
+            // Wait for embed to load and capture
+            return new Promise((resolve) => {
+                setTimeout(async () => {
+                    const canvas = await html2canvas(container, {
+                        allowTaint: true,
+                        useCORS: true,
+                        backgroundColor: null
+                    });
+                    
+                    const base64Image = canvas.toDataURL('image/png');
+                    resolve(base64Image);
+                }, 3000);
+            });
+        }
+
+        // Listen for messages from the parent window
+        window.addEventListener('message', async (event) => {
+            if (event.data.type === 'CAPTURE_TWEET') {
+                const base64Image = await captureTweet(event.data.url);
+                window.parent.postMessage({ 
+                    type: 'TWEET_CAPTURED',
+                    image: base64Image,
+                    url: event.data.url
+                }, '*');
+            }
+        });
+    </script>
+</body>
+</html> 
