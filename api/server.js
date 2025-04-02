@@ -3,7 +3,7 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const puppeteer = require('puppeteer');
-
+const { imageSizeFromFile } = require('image-size/fromFile');
 const app = express();
 const port = 5000;
 const tempDir = path.join(__dirname, 'public', 'temp');
@@ -174,23 +174,21 @@ const createTweetImages = async (tweets, user) => {
 const createPDF = async (imagePaths) => {
   // Create PDF with all images
   const PDFDocument = require('pdfkit');
-  const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
-  const pdfPath = path.join(tempDir, pdfFilename);
+  // const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
+  // const pdfPath = path.join(tempDir, pdfFilename);
   const doc = new PDFDocument({
     autoFirstPage: false
   });
 
-  // Create a buffer to store the PDF data and pipe to file
+  // Create a buffer to store the PDF data
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
-  doc.pipe(require('fs').createWriteStream(pdfPath));
+  // doc.pipe(require('fs').createWriteStream(pdfPath));
 
   // Add each image to the PDF
   for (const imagePath of imagePaths) {
     // Get image dimensions
-    const {imageSizeFromFile} = require('image-size/fromFile');
     const dimensions = await imageSizeFromFile(imagePath);
-    console.log(dimensions);
     
     // Add a new page with image dimensions
     doc.addPage({
@@ -207,11 +205,14 @@ const createPDF = async (imagePaths) => {
   // Finalize PDF
   doc.end();
 
+  //clean up temp folder
+
   // Return a promise that resolves with both the PDF path and base64
   return new Promise((resolve) => {
     doc.on('end', () => {
       const pdfBuffer = Buffer.concat(chunks);
       const base64Pdf = pdfBuffer.toString('base64');
+      fs.rm(tempDir, { recursive: true });
       resolve({
         base64Pdf
       });
@@ -230,12 +231,14 @@ app.post('/createTweetImages', async (req, res) => {
   try {
     const result = await createTweetImages(tweets, user);
     const pdfResult = await createPDF(result.imagePaths);
-    return res.status(200).json({ images: result.base64Images, pdf: pdfResult });
+    return res.status(200).json({ base64Images: result.base64Images, base64Pdf: pdfResult.base64Pdf });
   } catch (error) {
     console.error('Error processing tweets:', error);
     return res.status(500).json({ error: 'Failed to process tweets', images: [] });
   }
 });
+
+app.get("/", (req, res) => res.send("Tweet to Pics and PDF API running"));
 
 // Start the server
 app.listen(port, () => {
