@@ -133,7 +133,6 @@ const createTweetImages = async (tweets, user) => {
     });
 
     const page = await browser.newPage();
-    // Set larger initial viewport
     await page.setViewport({ width: 1350, height: 1350 });
 
     const base64Images = [];
@@ -150,94 +149,83 @@ const createTweetImages = async (tweets, user) => {
                 margin: 0;
                 width: 1350px;
                 height: 1350px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-              }
-              .tweet-outer {
-                background-color: #2e1065;
-                padding: 40px;
-                width: 100%;
-                height: 100%;
-                box-sizing: border-box;
-                display: flex;
-                justify-content: center;
-                align-items: center;
+                background: #000000;
               }
               .tweet-container {
-                background: #000000;
-                border-radius: 32px;
-                padding: 32px 40px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                width: 1200px;
+                width: 1350px;
+                height: 1350px;
+                padding: 60px;
                 box-sizing: border-box;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                flex-direction: column;
               }
               .profile-section {
                 display: flex;
                 align-items: center;
-                margin-bottom: 24px;
+                margin-bottom: 48px;
               }
               .profile-image {
-                width: 96px;
-                height: 96px;
+                width: 150px;
+                height: 150px;
                 border-radius: 50%;
-                margin-right: 24px;
+                margin-right: 40px;
               }
               .user-info {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 12px;
               }
               .user-name {
                 color: #e7e9ea;
                 font-weight: 700;
-                font-size: 32px;
+                font-size: 56px;
                 line-height: 1.2;
               }
               .user-handle {
                 color: rgb(113, 118, 123);
-                font-size: 28px;
+                font-size: 44px;
                 line-height: 1.2;
               }
               .tweet-text {
                 color: #e7e9ea;
-                font-size: 40px;
+                font-size: 60px;
                 line-height: 1.5;
                 white-space: pre-wrap;
-                margin-bottom: 32px;
+                margin-bottom: 48px;
+                flex-grow: 1;
               }
               .tweet-time {
                 color: rgb(113, 118, 123);
-                font-size: 24px;
+                font-size: 36px;
                 line-height: 1.2;
+                margin-top: auto;
               }
             </style>
           </head>
           <body>
-            <div class="tweet-outer">
-              <div class="tweet-container">
-                <div class="profile-section">
-                  <img 
-                    class="profile-image"
-                    src="${user.profileImageUrl || `https://unavatar.io/twitter/${user.twitterUserName}`}"
-                    alt="${user.twitterName}"
-                  />
-                  <div class="user-info">
-                    <span class="user-name">${user.twitterName}</span>
-                    <span class="user-handle">@${user.twitterUserName}</span>
-                  </div>
+            <div class="tweet-container">
+              <div class="profile-section">
+                <img 
+                  class="profile-image"
+                  src="${user.profileImageUrl || `https://unavatar.io/twitter/${user.twitterUserName}`}"
+                  alt="${user.twitterName}"
+                />
+                <div class="user-info">
+                  <span class="user-name">${user.twitterName}</span>
+                  <span class="user-handle">@${user.twitterUserName}</span>
                 </div>
-                <div class="tweet-text">${tweet}</div>
-                <div class="tweet-time">
-                  ${new Date().toLocaleString('en-US', {
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true,
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </div>
+              </div>
+              <div class="tweet-text">${tweet}</div>
+              <div class="tweet-time">
+                ${new Date().toLocaleString('en-US', {
+                  hour: 'numeric',
+                  minute: 'numeric',
+                  hour12: true,
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
               </div>
             </div>
           </body>
@@ -271,11 +259,9 @@ const createTweetImages = async (tweets, user) => {
         });
       });
 
-      // Take screenshot of the entire viewport
+      // Take screenshot
       const screenshot = await page.screenshot({
-        omitBackground: true,
-        width: 1350,
-        height: 1350
+        omitBackground: true
       });
 
       // Generate unique filename and save
