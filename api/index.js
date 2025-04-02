@@ -15,6 +15,111 @@ app.use(express.json()); // Middleware to parse JSON request body
 // Add static file serving
 app.use(express.static('public'));
 
+const captureTweetEmbed = async (tweetUrl) => {
+  let browser;
+  try {
+    // Ensure temp directory exists
+    try {
+      await fs.access(tempDir);
+    } catch {
+      await fs.mkdir(tempDir, { recursive: true });
+    }
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    
+    // Create HTML with tweet embed
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+        </head>
+        <body style="margin: 0; background: transparent;">
+          <blockquote class="twitter-tweet" data-dnt="true">
+            <a href="${tweetUrl}"></a>
+          </blockquote>
+          <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+        </body>
+      </html>
+    `;
+
+    await page.setContent(html, {
+      waitUntil: 'networkidle0'
+    });
+
+    // Get the tweet element by selector for cropping
+    const element = await page.$('.twitter-tweet');
+    const boundingBox = await element.boundingBox();
+
+    // Take screenshot
+    const screenshot = await page.screenshot({
+      clip: boundingBox,
+      omitBackground: true
+    });
+
+    // Generate unique filename
+    const filename = `tweet-${Date.now()}.png`;
+    const filepath = path.join(tempDir, filename);
+
+    // Save the image
+    await fs.writeFile(filepath, screenshot);
+
+    // Convert to base64
+    const base64Image = screenshot.toString('base64');
+
+    return {
+      base64: base64Image,
+      path: filepath
+    };
+
+  } catch (error) {
+    console.error('Error capturing tweet:', error);
+    throw error;
+  } finally {
+    if (browser) await browser.close();
+  }
+};
+
+// New route for tweet embeds
+app.post('/captureTweetEmbeds', async (req, res) => {
+  const { tweetUrls } = req.body;
+
+  if (!Array.isArray(tweetUrls) || tweetUrls.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid input: tweetUrls must be a non-empty array'
+    });
+  }
+
+  try {
+    const results = [];
+    
+    // Process each tweet URL
+    for (const url of tweetUrls) {
+      const result = await captureTweetEmbed(url);
+      results.push(result);
+    }
+
+    return res.json({
+      images: results.map(r => ({
+        base64: r.base64,
+        path: r.path
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error processing tweets:', error);
+    return res.status(500).json({
+      error: 'Failed to process tweets',
+      details: error.message
+    });
+  }
+});
+
 // Helper function to create custom tweet images
 const createTweetImages = async (tweets, user) => {
   let browser;
