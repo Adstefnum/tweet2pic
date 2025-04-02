@@ -171,41 +171,51 @@ const createTweetImages = async (tweets, user) => {
 };
 
 const createPDF = async (images) => {
- // Create PDF with all images
- const PDFDocument = require('pdfkit');
- const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
- const pdfPath = path.join(tempDir, pdfFilename);
- const doc = new PDFDocument({
-   autoFirstPage: false
- });
+  // Create PDF with all images
+  const PDFDocument = require('pdfkit');
+  const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
+  const pdfPath = path.join(tempDir, pdfFilename);
+  const doc = new PDFDocument({
+    autoFirstPage: false
+  });
 
- // Pipe PDF to file
- doc.pipe(require('fs').createWriteStream(pdfPath));
+  // Create a buffer to store the PDF data and pipe to file
+  const chunks = [];
+  doc.on('data', (chunk) => chunks.push(chunk));
+  doc.pipe(require('fs').createWriteStream(pdfPath));
 
- // Add each image to the PDF
- for (const base64Image of images) {
-   // Convert base64 back to buffer
-   const imageBuffer = Buffer.from(base64Image, 'base64');
-   
-   // Add a new page for each image
-   doc.addPage();
-   
-   // Get page dimensions
-   const pageWidth = doc.page.width;
-   const pageHeight = doc.page.height;
+  // Add each image to the PDF
+  for (const base64Image of images) {
+    // Convert base64 back to buffer
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+    
+    // Add a new page for each image
+    doc.addPage();
+    
+    // Get page dimensions
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
 
-   // Add image and fit to page with margins
-   doc.image(imageBuffer, 50, 50, {
-     fit: [pageWidth - 100, pageHeight - 100],
-     align: 'center',
-     valign: 'center'
-   });
- }
+    // Add image to fill entire page
+    doc.image(imageBuffer, 0, 0, {
+      width: pageWidth,
+      height: pageHeight
+    });
+  }
 
- // Finalize PDF
- doc.end();
- 
- return pdfPath;
+  // Finalize PDF
+  doc.end();
+
+  // Return a promise that resolves with both the PDF path and base64
+  return new Promise((resolve) => {
+    doc.on('end', () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      const base64Pdf = pdfBuffer.toString('base64');
+      resolve({
+       base64Pdf
+      });
+    });
+  });
 }
 // API Route to create tweet images
 app.post('/createTweetImages', async (req, res) => {
