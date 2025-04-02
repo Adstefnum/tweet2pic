@@ -133,75 +133,112 @@ const createTweetImages = async (tweets, user) => {
     });
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 650, height: 1000 });
+    // Set larger initial viewport
+    await page.setViewport({ width: 1350, height: 1350 });
 
     const base64Images = [];
     const imagePaths = [];
 
     for (const tweet of tweets) {
-      // Create the tweet HTML
       const tweetHtml = `
         <!DOCTYPE html>
         <html>
           <head>
             <meta charset="UTF-8">
             <style>
-              body { margin: 0; }
-              @font-face {
-                font-family: 'Segoe UI';
-                src: local('Segoe UI');
+              body { 
+                margin: 0;
+                width: 1350px;
+                height: 1350px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              }
+              .tweet-outer {
+                background-color: #2e1065;
+                padding: 40px;
+                width: 100%;
+                height: 100%;
+                box-sizing: border-box;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              }
+              .tweet-container {
+                background: #000000;
+                border-radius: 32px;
+                padding: 32px 40px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                width: 1200px;
+                box-sizing: border-box;
+              }
+              .profile-section {
+                display: flex;
+                align-items: center;
+                margin-bottom: 24px;
+              }
+              .profile-image {
+                width: 96px;
+                height: 96px;
+                border-radius: 50%;
+                margin-right: 24px;
+              }
+              .user-info {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+              }
+              .user-name {
+                color: #e7e9ea;
+                font-weight: 700;
+                font-size: 32px;
+                line-height: 1.2;
+              }
+              .user-handle {
+                color: rgb(113, 118, 123);
+                font-size: 28px;
+                line-height: 1.2;
+              }
+              .tweet-text {
+                color: #e7e9ea;
+                font-size: 40px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                margin-bottom: 32px;
+              }
+              .tweet-time {
+                color: rgb(113, 118, 123);
+                font-size: 24px;
+                line-height: 1.2;
               }
             </style>
           </head>
           <body>
-            <div style="background-color: #2e1065; padding: 20px;">
-              <div style="
-                background: #000000;
-                border-radius: 16px;
-                padding: 12px 16px;
-                margin-bottom: 16px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                width: 548px;
-              ">
-                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <div class="tweet-outer">
+              <div class="tweet-container">
+                <div class="profile-section">
                   <img 
+                    class="profile-image"
                     src="${user.profileImageUrl || `https://unavatar.io/twitter/${user.twitterUserName}`}"
-                    style="width: 48px; height: 48px; border-radius: 50%; margin-right: 12px;"
                     alt="${user.twitterName}"
                   />
-                  <div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                      <span style="color: #e7e9ea; font-weight: 700; font-size: 15px;">
-                        ${user.twitterName}
-                      </span>
-                      <span style="color: rgb(113, 118, 123); font-size: 15px;">
-                        @${user.twitterUserName}
-                      </span>
-                    </div>
-
+                  <div class="user-info">
+                    <span class="user-name">${user.twitterName}</span>
+                    <span class="user-handle">@${user.twitterUserName}</span>
                   </div>
                 </div>
-                <div style="
-                  color: #e7e9ea;
-                  font-size: 15px;
-                  line-height: 1.5;
-                  white-space: pre-wrap;
-                  margin-bottom: 12px;
-                ">
-                  ${tweet}
+                <div class="tweet-text">${tweet}</div>
+                <div class="tweet-time">
+                  ${new Date().toLocaleString('en-US', {
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true,
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
                 </div>
-                 <div style="color: rgb(113, 118, 123); font-size: 15px;">
-                      ${new Date(Date.now()).toLocaleString('en-US', {
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true,
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </div>
               </div>
-                                 
             </div>
           </body>
         </html>
@@ -234,39 +271,20 @@ const createTweetImages = async (tweets, user) => {
         });
       });
 
-      // Get the content height and update viewport
-      const bodyHandle = await page.$('body');
-      const { height } = await bodyHandle.boundingBox();
-      await bodyHandle.dispose();
-
-      // Update page viewport to match content
-      await page.setViewport({ width: 650, height: Math.ceil(height) });
-
-      // Take screenshot
-      const screenshotBuffer = await page.screenshot({
-        omitBackground: true
+      // Take screenshot of the entire viewport
+      const screenshot = await page.screenshot({
+        omitBackground: true,
+        width: 1350,
+        height: 1350
       });
 
-      // Convert buffer to base64 string
-      const base64String = Buffer.from(screenshotBuffer).toString('base64');
-      // Save screenshot to temp folder
-      const fs = require('fs');
-      const path = require('path');
-      
-      // Ensure temp directory exists
-
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-
-      // Generate unique filename
+      // Generate unique filename and save
       const filename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
       const filepath = path.join(tempDir, filename);
+      await fs.writeFile(filepath, screenshot);
 
-      // Save the screenshot
-      await fs.promises.writeFile(filepath, screenshotBuffer);
       imagePaths.push(filepath);
-      base64Images.push(base64String); // Just push the base64 string without the data URI prefix
+      base64Images.push(Buffer.from(screenshot).toString('base64'));
     }
 
     return { base64Images, imagePaths };
@@ -313,14 +331,17 @@ const createPDF = async (imagePaths) => {
   // Finalize PDF
   doc.end();
 
-  //clean up temp folder
 
   // Return a promise that resolves with both the PDF path and base64
   return new Promise((resolve) => {
     doc.on('end', () => {
       const pdfBuffer = Buffer.concat(chunks);
       const base64Pdf = pdfBuffer.toString('base64');
-      // fs.rm(tempDir, { recursive: true });
+      // Clean up image files
+      for (const imagePath of imagePaths) {
+        fs.unlink(imagePath);
+      }
+      fs.unlink(pdfPath);
       resolve({
         base64Pdf
       });
