@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer');
 
 const app = express();
 const port = 3000;
+const tempDir = path.join(__dirname, 'public', 'temp');
 
 // Enable CORS for testing locally
 app.use(cors());
@@ -24,9 +25,9 @@ const createTweetImages = async (tweets, user) => {
     });
 
     const page = await browser.newPage();
-    await page.setViewport({ width: 650, height: 1000 }); // Wide enough for the tweet width
+    await page.setViewport({ width: 650, height: 1000 });
 
-    const base64Images = [];
+    const images = [];
 
     for (const tweet of tweets) {
       // Create the tweet HTML
@@ -64,20 +65,12 @@ const createTweetImages = async (tweets, user) => {
                       <span style="color: #e7e9ea; font-weight: 700; font-size: 15px;">
                         ${user.twitterName}
                       </span>
+                      <br />
                       <span style="color: rgb(113, 118, 123); font-size: 15px;">
                         @${user.twitterUserName}
                       </span>
                     </div>
-                    <div style="color: rgb(113, 118, 123); font-size: 15px;">
-                      ${new Date(tweet.createdAt).toLocaleString('en-US', {
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        hour12: true,
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </div>
+
                   </div>
                 </div>
                 <div style="
@@ -87,9 +80,20 @@ const createTweetImages = async (tweets, user) => {
                   white-space: pre-wrap;
                   margin-bottom: 12px;
                 ">
-                  ${tweet.text}
+                  ${tweet}
                 </div>
+                 <div style="color: rgb(113, 118, 123); font-size: 15px;">
+                      ${new Date(Date.now()).toLocaleString('en-US', {
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true,
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </div>
               </div>
+                                 
             </div>
           </body>
         </html>
@@ -135,20 +139,74 @@ const createTweetImages = async (tweets, user) => {
         omitBackground: true
       });
 
-      // Add to results
-      base64Images.push(screenshotBuffer.toString('base64'));
+      // Convert buffer to base64 string
+      const base64String = Buffer.from(screenshotBuffer).toString('base64');
+      // Save screenshot to temp folder
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Ensure temp directory exists
+
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const filename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
+      const filepath = path.join(tempDir, filename);
+
+      // Save the screenshot
+      await fs.promises.writeFile(filepath, screenshotBuffer);
+      images.push(base64String); // Just push the base64 string without the data URI prefix
     }
 
-    return base64Images;
+    return images;
 
   } catch (error) {
     console.error('Error creating tweet images:', error);
-    return null;
+    return { images: [] };
   } finally {
     if (browser) await browser.close();
   }
 };
 
+const createPDF = async (images) => {
+ // Create PDF with all images
+ const PDFDocument = require('pdfkit');
+ const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
+ const pdfPath = path.join(tempDir, pdfFilename);
+ const doc = new PDFDocument({
+   autoFirstPage: false
+ });
+
+ // Pipe PDF to file
+ doc.pipe(require('fs').createWriteStream(pdfPath));
+
+ // Add each image to the PDF
+ for (const base64Image of images) {
+   // Convert base64 back to buffer
+   const imageBuffer = Buffer.from(base64Image, 'base64');
+   
+   // Add a new page for each image
+   doc.addPage();
+   
+   // Get page dimensions
+   const pageWidth = doc.page.width;
+   const pageHeight = doc.page.height;
+
+   // Add image and fit to page with margins
+   doc.image(imageBuffer, 50, 50, {
+     fit: [pageWidth - 100, pageHeight - 100],
+     align: 'center',
+     valign: 'center'
+   });
+ }
+
+ // Finalize PDF
+ doc.end();
+ 
+ return pdfPath;
+}
 // API Route to create tweet images
 app.post('/createTweetImages', async (req, res) => {
   const { tweets, user } = req.body;
@@ -159,20 +217,12 @@ app.post('/createTweetImages', async (req, res) => {
   }
 
   try {
-    const base64Images = await createTweetImages(tweets, user);
-    
-    if (!base64Images) {
-      return res.status(500).json({ error: 'Failed to create tweet images' });
-    }
-
-    // Return the array of base64 images
-    return res.status(200).json({
-      images: base64Images.map(base64 => `data:image/png;base64,${base64}`)
-    });
-
+    const result = await createTweetImages(tweets, user);
+    const pdfResult = await createPDF(result);
+    return res.status(200).json({ images: result, pdf: pdfResult });
   } catch (error) {
     console.error('Error processing tweets:', error);
-    return res.status(500).json({ error: 'Failed to process tweets' });
+    return res.status(500).json({ error: 'Failed to process tweets', images: [] });
   }
 });
 
