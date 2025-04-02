@@ -27,7 +27,8 @@ const captureTweetEmbed = async (tweetUrl) => {
 
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      defaultViewport: { width: 1024, height: 768 }
     });
 
     const page = await browser.newPage();
@@ -41,7 +42,7 @@ const captureTweetEmbed = async (tweetUrl) => {
         </head>
         <body style="margin: 0; background: transparent;">
           <blockquote class="twitter-tweet" data-dnt="true">
-            <a href="${tweetUrl}"></a>
+            <a href="${tweetUrl.replace('x.com', 'twitter.com')}"></a>
           </blockquote>
           <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
         </body>
@@ -104,11 +105,13 @@ app.post('/captureTweetEmbeds', async (req, res) => {
       results.push(result);
     }
 
+    const pdf = await createPDF(results.map(r => r.path));
+
     return res.json({
       images: results.map(r => ({
-        base64: r.base64,
-        path: r.path
-      }))
+        base64: r.base64
+      })),
+      pdf: pdf.base64Pdf
     });
 
   } catch (error) {
@@ -279,8 +282,8 @@ const createTweetImages = async (tweets, user) => {
 const createPDF = async (imagePaths) => {
   // Create PDF with all images
   const PDFDocument = require('pdfkit');
-  // const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
-  // const pdfPath = path.join(tempDir, pdfFilename);
+  const pdfFilename = `tweet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.pdf`;
+  const pdfPath = path.join(tempDir, pdfFilename);
   const doc = new PDFDocument({
     autoFirstPage: false
   });
@@ -288,7 +291,7 @@ const createPDF = async (imagePaths) => {
   // Create a buffer to store the PDF data
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
-  // doc.pipe(require('fs').createWriteStream(pdfPath));
+  doc.pipe(require('fs').createWriteStream(pdfPath));
 
   // Add each image to the PDF
   for (const imagePath of imagePaths) {
@@ -317,7 +320,7 @@ const createPDF = async (imagePaths) => {
     doc.on('end', () => {
       const pdfBuffer = Buffer.concat(chunks);
       const base64Pdf = pdfBuffer.toString('base64');
-      fs.rm(tempDir, { recursive: true });
+      // fs.rm(tempDir, { recursive: true });
       resolve({
         base64Pdf
       });
