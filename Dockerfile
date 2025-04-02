@@ -55,14 +55,12 @@ RUN npm ci
 # Copy the rest of the application code
 COPY . .
 
-# Build the application
-RUN npm run build
+ARG API_KEY
+
+ARG PORT
 
 # Expose the API port
 EXPOSE ${PORT:-3000}
-
-# Set API_KEY environment variable
-ENV API_KEY=${API_KEY}
 
 # Start the application
 CMD ["node", "api/index.js"]
