@@ -23,7 +23,8 @@ const createTweetImages = async (tweets, user) => {
   try {
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: puppeteer.executablePath(),
     });
 
     const page = await browser.newPage();
