@@ -52,7 +52,7 @@ COPY package*.json ./
 # Install Node.js dependencies
 RUN npm ci
 
-RUN node node_modules/puppeteer/install.js
+RUN node node_modules/puppeteer/install.mjs
 
 RUN npx puppeteer browsers install chrome
 
