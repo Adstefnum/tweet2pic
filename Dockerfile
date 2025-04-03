@@ -54,8 +54,6 @@ RUN npm ci
 
 RUN node node_modules/puppeteer/install.mjs
 
-RUN npx puppeteer browsers install chrome
-
 # Copy the rest of the application code
 COPY . .
 

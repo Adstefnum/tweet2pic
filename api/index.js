@@ -14,9 +14,6 @@ dotenv.config();
 app.use(cors());
 app.use(express.json()); // Middleware to parse JSON request body
 
-// Add static file serving
-app.use(express.static('public'));
-
 // Helper function to create custom tweet images
 const createTweetImages = async (tweets, user) => {
   let browser;
