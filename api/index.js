@@ -6,7 +6,7 @@ const puppeteer = require('puppeteer');
 const { imageSizeFromFile } = require('image-size/fromFile');
 const app = express();
 const port = process.env.PORT || 5000;
-const tempDir = path.join(__dirname, 'public', 'temp');
+const tempDir = path.join('/tmp');
 const dotenv = require('dotenv');
 dotenv.config();
 
