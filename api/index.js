@@ -22,9 +22,11 @@ const createTweetImages = async (tweets, user) => {
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: true,
+      headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: '/app/.cache/puppeteer/chrome/linux-134.0.6998.35/chrome-linux64/chrome',
     });
+    console.log(browser.executablePath());
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1350, height: 1350 });
